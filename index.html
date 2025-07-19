@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TURN Server ICE Candidate Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .badge { display: inline-block; padding: 0.25em 0.6em; font-size: 0.75em; font-weight: 600; line-height: 1; text-align: center; white-space: nowrap; vertical-align: baseline; border-radius: 0.375rem; }
+        .badge-host { background-color: #dbeafe; color: #1e40af; }
+        .badge-srflx { background-color: #d1fae5; color: #065f46; }
+        .badge-relay { background-color: #fee2e2; color: #991b1b; }
+        .badge-prflx { background-color: #fef3c7; color: #92400e; }
+        .status-running { color: #ca8a04; }
+        .status-complete { color: #16a34a; }
+        .status-failed { color: #dc2626; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-4xl">
+        
+        <!-- Main Test View -->
+        <div id="main-view">
+            <div class="bg-white p-6 rounded-xl shadow-md relative">
+                <button id="settings-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">TURN Server Test</h1>
+                <p class="text-gray-600 mb-4">This page will automatically gather ICE candidates from your TURN server.</p>
+
+                <div class="mb-6 p-4 bg-gray-100 rounded-lg">
+                    <h2 class="text-lg font-semibold mb-2">Configuration</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div><p class="font-medium text-gray-500">TURN URL (TCP/80):</p><p class="font-mono text-gray-700" id="turn-url-tcp"></p></div>
+                        <div><p class="font-medium text-gray-500">TURN URL (TLS/443):</p><p class="font-mono text-gray-700" id="turn-url-tls"></p></div>
+                        <div><p class="font-medium text-gray-500">TURN URL (UDP/3478):</p><p class="font-mono text-gray-700" id="turn-url-udp-3478"></p></div>
+                        <div><p class="font-medium text-gray-500">TURN URL (UDP/443):</p><p class="font-mono text-gray-700" id="turn-url-udp-443"></p></div>
+                        <div><p class="font-medium text-gray-500">Username:</p><p class="font-mono text-gray-700" id="turn-username"></p></div>
+                        <div id="credential-display"><p class="font-medium text-gray-500">Auth Secret:</p><p class="font-mono text-gray-700">**********</p></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center mb-4"><h2 class="text-lg font-semibold mr-3">Test Status:</h2><p id="status" class="font-bold text-lg status-running">Running...</p></div>
+                <div class="bg-gray-800 text-white font-mono p-4 rounded-lg text-sm overflow-x-auto"><code id="results" class="whitespace-pre">Gathering candidates...</code></div>
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settings-view" class="hidden">
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Settings</h1>
+                <p class="text-gray-600 mb-4">Configure your TURN server details using a JSON object. The configuration is saved to your browser's local storage.</p>
+                
+                <div id="alert-message" class="hidden p-4 mb-4 rounded-lg"></div>
+
+                <div>
+                    <label for="json-config" class="block text-sm font-medium text-gray-700 mb-1">JSON Configuration</label>
+                    <textarea id="json-config" rows="12" class="w-full p-2 border border-gray-300 rounded-md font-mono text-sm"></textarea>
+                    <p class="mt-2 text-xs text-gray-500">
+                        Provide either <strong>authSecret</strong> (for short-term credentials) or <strong>username/password</strong> (for long-term credentials).<br>
+                        Example 1: <code class="text-gray-700">{ "serverIp": "...", "authSecret": "..." }</code><br>
+                        Example 2: <code class="text-gray-700">{ "serverIp": "...", "username": "...", "password": "..." }</code>
+                    </p>
+                </div>
+
+                <div class="mt-4 flex justify-end space-x-3">
+                    <button id="back-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Back to Test</button>
+                    <button id="save-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save Configuration</button>
+                </div>
+            </div>
+        </div>
+
+        <footer class="text-center text-gray-500 mt-6 text-sm">
+            <p>This page automatically initiates a WebRTC PeerConnection to test your server.</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const mainView = document.getElementById('main-view');
+            const settingsView = document.getElementById('settings-view');
+            const settingsBtn = document.getElementById('settings-btn');
+            const backBtn = document.getElementById('back-btn');
+            const saveBtn = document.getElementById('save-btn');
+            const jsonConfigArea = document.getElementById('json-config');
+            const alertMessage = document.getElementById('alert-message');
+
+            const defaultConfig = {
+                serverIp: "your.server.ip",
+                authSecret: "your-turn-server-auth-secret"
+            };
+
+            function loadConfig() {
+                try {
+                    const storedConfig = localStorage.getItem('turnConfig');
+                    if (storedConfig) {
+                        return JSON.parse(storedConfig);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse stored config:", e);
+                }
+                return defaultConfig;
+            }
+
+            let currentConfig = loadConfig();
+
+            function toggleView() {
+                mainView.classList.toggle('hidden');
+                settingsView.classList.toggle('hidden');
+                if (!settingsView.classList.contains('hidden')) {
+                    jsonConfigArea.value = JSON.stringify(currentConfig, null, 2);
+                }
+            }
+
+            function showAlert(message, isError = false) {
+                alertMessage.textContent = message;
+                alertMessage.className = isError 
+                    ? 'p-4 mb-4 rounded-lg bg-red-100 text-red-700' 
+                    : 'p-4 mb-4 rounded-lg bg-green-100 text-green-700';
+            }
+
+            function saveConfig() {
+                try {
+                    const newConfig = JSON.parse(jsonConfigArea.value);
+                    // --- Updated Schema Validation ---
+                    if (!newConfig.serverIp) {
+                        throw new Error("JSON must include 'serverIp' key.");
+                    }
+                    const hasAuthSecret = newConfig.authSecret && typeof newConfig.authSecret === 'string';
+                    const hasUserPass = newConfig.username && typeof newConfig.username === 'string' && newConfig.password && typeof newConfig.password === 'string';
+
+                    if (!hasAuthSecret && !hasUserPass) {
+                        throw new Error("JSON must include either 'authSecret' or both 'username' and 'password'.");
+                    }
+                    if (hasAuthSecret && hasUserPass) {
+                        throw new Error("Cannot provide both 'authSecret' and 'username'/'password'. Please choose one method.");
+                    }
+                    // --- End Validation ---
+
+                    localStorage.setItem('turnConfig', JSON.stringify(newConfig));
+                    currentConfig = newConfig;
+                    showAlert('Configuration saved successfully!', false);
+                    setTimeout(() => { 
+                        showAlert('', false);
+                        toggleView(); 
+                        location.reload(); 
+                    }, 1500);
+                } catch (e) {
+                    showAlert(`Error: ${e.message}`, true);
+                }
+            }
+
+            settingsBtn.addEventListener('click', toggleView);
+            backBtn.addEventListener('click', toggleView);
+            saveBtn.addEventListener('click', saveConfig);
+
+            // --- Main Test Logic ---
+            function runTest(config) {
+                const TURN_SERVER_IP = config.serverIp;
+                const resultsDiv = document.getElementById('results');
+                const statusDiv = document.getElementById('status');
+                const credentialDisplay = document.getElementById('credential-display');
+                
+                let username, credential, credentialType;
+
+                // --- Adaptive Credential Logic ---
+                if (config.authSecret) {
+                    // Short-term credential method
+                    username = Math.floor(Date.now() / 1000).toString(); // Dynamic username
+                    credential = config.authSecret;
+                    credentialType = "Auth Secret";
+                } else {
+                    // Long-term credential method
+                    username = config.username; // Static username from config
+                    credential = config.password;
+                    credentialType = "Password";
+                }
+                // --- End Adaptive Logic ---
+
+                document.getElementById('turn-url-tcp').textContent = `turn:${TURN_SERVER_IP}:80?transport=tcp`;
+                document.getElementById('turn-url-tls').textContent = `turn:${TURN_SERVER_IP}:443?transport=tcp`;
+                document.getElementById('turn-url-udp-3478').textContent = `turn:${TURN_SERVER_IP}:3478?transport=udp`;
+                document.getElementById('turn-url-udp-443').textContent = `turn:${TURN_SERVER_IP}:443?transport=udp`;
+                document.getElementById('turn-username').textContent = username;
+                credentialDisplay.innerHTML = `<p class="font-medium text-gray-500">${credentialType}:</p><p class="font-mono text-gray-700">**********</p>`;
+
+
+                resultsDiv.innerHTML = '';
+
+                const pcConfig = {
+                    iceServers: [{
+                        urls: [
+                            `turn:${TURN_SERVER_IP}:80?transport=tcp`,
+                            `turn:${TURN_SERVER_IP}:443?transport=tcp`,
+                            `turn:${TURN_SERVER_IP}:3478?transport=udp`,
+                            `turn:${TURN_SERVER_IP}:443?transport=udp`
+                        ],
+                        username: username,
+                        credential: credential
+                    }]
+                };
+
+                let pc;
+                try {
+                    pc = new RTCPeerConnection(pcConfig);
+                } catch (e) {
+                    resultsDiv.innerHTML += `Failed to create PeerConnection: ${e.message}\n`;
+                    statusDiv.textContent = "Failed";
+                    statusDiv.className = "font-bold text-lg status-failed";
+                    return;
+                }
+
+                const candidates = new Set();
+                let finalTimeout;
+
+                pc.onicecandidate = (event) => {
+                    clearTimeout(finalTimeout);
+                    if (event.candidate) {
+                        const cand = event.candidate.candidate;
+                        if (!candidates.has(cand)) {
+                            candidates.add(cand);
+                            const candidateData = parseCandidate(cand);
+                            let badgeHtml = `<span class="badge badge-${candidateData.type.toLowerCase()}">${candidateData.type}</span>`;
+                            resultsDiv.innerHTML += `${badgeHtml} ${candidateData.address}:${candidateData.port} (${candidateData.protocol})\n`;
+                        }
+                    } else {
+                        onIceGatheringComplete();
+                    }
+                    finalTimeout = setTimeout(onIceGatheringComplete, 2000);
+                };
+
+                pc.onicegatheringstatechange = () => {
+                    if (pc.iceGatheringState === 'complete') {
+                        onIceGatheringComplete();
+                    }
+                };
+
+                pc.createDataChannel('test');
+                pc.createOffer()
+                    .then(offer => pc.setLocalDescription(offer))
+                    .catch(e => {
+                        resultsDiv.innerHTML += `\nError creating offer: ${e.message}\n`;
+                        statusDiv.textContent = "Failed";
+                        statusDiv.className = "font-bold text-lg status-failed";
+                    });
+
+                let completed = false;
+                function onIceGatheringComplete() {
+                    if (completed) return;
+                    completed = true;
+                    clearTimeout(finalTimeout);
+                    statusDiv.textContent = "Complete";
+                    statusDiv.className = "font-bold text-lg status-complete";
+                    const hasRelay = Array.from(candidates).some(c => c.includes('typ relay'));
+                    if (candidates.size === 0) {
+                        resultsDiv.innerHTML += "\n\nNo ICE candidates found. Check server address and firewall.";
+                    } else if (!hasRelay) {
+                        resultsDiv.innerHTML += "\n\nWarning: No 'relay' candidates found. TURN server may not be working correctly.";
+                    } else {
+                        resultsDiv.innerHTML += "\n\nSuccess: 'relay' candidate found!";
+                    }
+                    pc.close();
+                }
+
+                function parseCandidate(cand) {
+                    const parts = cand.split(' ');
+                    return {
+                        type: parts[7].toUpperCase(),
+                        address: parts[4],
+                        port: parts[5],
+                        protocol: parts[2].toLowerCase(),
+                    };
+                }
+            }
+            
+            runTest(currentConfig);
+        });
+    </script>
+</body>
+</html>
