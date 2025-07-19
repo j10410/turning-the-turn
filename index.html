@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TURN Server ICE Candidate Test</title>
+    <title>Eturnal TURN Server ICE Candidate Test</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -30,7 +30,7 @@
                 <div class="absolute top-4 right-4 flex space-x-2">
                     <button id="rerun-btn" class="text-gray-400 hover:text-gray-600" title="Rerun Test">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4 4l16 16" />
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.41l-.35.35a7.5 7.5 0 109.9 9.9l.35-.35V19h5v-5h-5v5l-.35-.35a7.5 7.5 0 00-9.9-9.9L4 9V4z" />
                         </svg>
                     </button>
                     <button id="settings-btn" class="text-gray-400 hover:text-gray-600" title="Settings">
@@ -40,15 +40,15 @@
                         </svg>
                     </button>
                 </div>
-                <h1 class="text-2xl font-bold text-gray-900 mb-2">TURN Server Test</h1>
-                <p class="text-gray-600 mb-4">This page automatically gathers ICE candidates from your TURN server(s).</p>
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Eturnal TURN Server Test</h1>
+                <p class="text-gray-600 mb-4">This page automatically gathers ICE candidates from your Eturnal TURN server(s).</p>
 
                 <div id="config-display" class="space-y-6">
                     <!-- Dynamic content here -->
                 </div>
 
                 <div class="flex items-center mt-6 mb-4"><h2 class="text-lg font-semibold mr-3">Test Status:</h2><p id="status" class="font-bold text-lg status-running">Running...</p></div>
-                <div class="bg-gray-800 text-white font-mono p-4 rounded-lg text-sm overflow-x-auto"><code id="results" class="whitespace-pre">Gathering candidates...</code></div>
+                <div class="bg-gray-800 text-white font-mono p-4 rounded-lg text-sm overflow-x-auto max-h-96 overflow-y-auto"><code id="results" class="whitespace-pre">Gathering candidates...</code></div>
             </div>
         </div>
 
@@ -56,7 +56,7 @@
         <div id="settings-view" class="hidden">
             <div class="bg-white p-6 rounded-xl shadow-md">
                 <h1 class="text-2xl font-bold text-gray-900 mb-2">Settings</h1>
-                <p class="text-gray-600 mb-4">Configure your TURN server details using a JSON object. The configuration is saved to your browser's local storage.</p>
+                <p class="text-gray-600 mb-4">Configure your Eturnal TURN server details. The configuration is saved to your browser's session storage.</p>
                 
                 <div id="alert-message" class="hidden p-4 mb-4 rounded-lg"></div>
 
@@ -65,6 +65,7 @@
                     <textarea id="json-config" rows="18" class="w-full p-2 border border-gray-300 rounded-md font-mono text-sm"></textarea>
                     <p class="mt-2 text-xs text-gray-500">
                         Configuration must be an array of server objects. Each object needs an <strong>authType</strong> ('authSecret' or 'password').
+                        For Eturnal servers, 'authSecret' is recommended with the shared secret from your eturnal.yml config.
                     </p>
                 </div>
 
@@ -79,7 +80,7 @@
         </div>
 
         <footer class="text-center text-gray-500 mt-6 text-sm">
-            <p>This page automatically initiates a WebRTC PeerConnection to test your server.</p>
+            <p>This page automatically initiates a WebRTC PeerConnection to test your Eturnal server.</p>
         </footer>
     </div>
 
@@ -98,33 +99,27 @@
 
             const defaultConfig = [
                 {
-                    "serverIp": "your.server.ip",
+                    "serverIp": "your.eturnal.server.ip",
                     "authType": "authSecret",
-                    "credential": "your-turn-server-auth-secret",
+                    "credential": "your-eturnal-shared-secret",
+                    "realm": "eturnal.net",
                     "ports": {
-                        "udp": [3478, 443],
-                        "tcp": [80],
-                        "tls": [443]
-                    }
-                },
-                {
-                    "serverIp": "another.server.ip",
-                    "authType": "password",
-                    "username": "static-user",
-                    "credential": "static-password",
-                    "ports": {
-                        "tls": [443]
+                        "udp": [3478],
+                        "tcp": [3478],
+                        "tls": [5349]
                     }
                 }
             ];
 
             function loadConfig() {
                 try {
-                    const storedConfig = localStorage.getItem('turnConfig');
+                    const storedConfig = sessionStorage.getItem('eturnalConfig');
                     if (storedConfig) {
                         return JSON.parse(storedConfig);
                     }
-                } catch (e) { console.error("Failed to parse stored config:", e); }
+                } catch (e) { 
+                    console.error("Failed to parse stored config:", e); 
+                }
                 return defaultConfig;
             }
 
@@ -135,12 +130,14 @@
                 settingsView.classList.toggle('hidden');
                 if (!settingsView.classList.contains('hidden')) {
                     jsonConfigArea.value = JSON.stringify(currentConfig, null, 2);
+                    alertMessage.classList.add('hidden');
                 }
             }
 
             function showAlert(message, isError = false) {
                 alertMessage.textContent = message;
                 alertMessage.className = `p-4 mb-4 rounded-lg ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+                alertMessage.classList.remove('hidden');
             }
 
             function saveConfig() {
@@ -158,13 +155,12 @@
                         }
                     });
 
-                    localStorage.setItem('turnConfig', JSON.stringify(newConfig));
+                    sessionStorage.setItem('eturnalConfig', JSON.stringify(newConfig));
                     currentConfig = newConfig;
                     showAlert('Configuration saved successfully!', false);
                     setTimeout(() => { 
-                        showAlert('', false); 
                         toggleView(); 
-                        location.reload(); 
+                        runTest(currentConfig);
                     }, 1500);
                 } catch (e) {
                     showAlert(`Error: ${e.message}`, true);
@@ -173,7 +169,7 @@
             
             function resetConfig() {
                 if (confirm("Are you sure you want to reset to the default configuration?")) {
-                    localStorage.removeItem('turnConfig');
+                    sessionStorage.removeItem('eturnalConfig');
                     currentConfig = defaultConfig;
                     jsonConfigArea.value = JSON.stringify(currentConfig, null, 2);
                     showAlert('Configuration has been reset to default.', false);
@@ -197,10 +193,13 @@
                         detailsContainer.innerHTML += `<div><p class="font-medium text-gray-500">URL:</p><p class="font-mono text-gray-700 truncate">${url}</p></div>`;
                     });
 
-                    const username = server.authType === 'authSecret' ? '(Generated by timestamp)' : server.username;
+                    const username = server.authType === 'authSecret' ? '(Generated dynamically)' : server.username;
                     detailsContainer.innerHTML += `<div><p class="font-medium text-gray-500">Username:</p><p class="font-mono text-gray-700">${username}</p></div>`;
-                    const credType = server.authType === 'authSecret' ? 'Auth Secret' : 'Password';
+                    const credType = server.authType === 'authSecret' ? 'Shared Secret' : 'Password';
                     detailsContainer.innerHTML += `<div><p class="font-medium text-gray-500">${credType}:</p><p class="font-mono text-gray-700">**********</p></div>`;
+                    if (server.realm) {
+                        detailsContainer.innerHTML += `<div><p class="font-medium text-gray-500">Realm:</p><p class="font-mono text-gray-700">${server.realm}</p></div>`;
+                    }
                 });
             }
             
@@ -226,7 +225,7 @@
                 const resultsDiv = document.getElementById('results');
                 const statusDiv = document.getElementById('status');
                 
-                resultsDiv.innerHTML = 'Gathering candidates...';
+                resultsDiv.innerHTML = 'Gathering candidates...\n';
                 statusDiv.textContent = "Running...";
                 statusDiv.className = "font-bold text-lg status-running";
 
@@ -235,63 +234,119 @@
                         const iceServer = {
                             urls: buildUrlsFromServerConfig(server),
                         };
+                        
                         if (server.authType === 'authSecret') {
-                            const username = (Math.floor(Date.now() / 1000) + 3600).toString(); // Timestamp valid for 1 hour
-                            const hmac = CryptoJS.HmacSHA1(username, server.credential);
+                            // Generate timestamp-based username (Eturnal standard)
+                            const timestamp = Math.floor(Date.now() / 1000) + 86400; // 24 hours validity
+                            const username = timestamp.toString();
+                            
+                            // Generate HMAC-SHA1 credential using the shared secret
+                            const message = username;
+                            const secret = server.credential;
+                            const hmac = CryptoJS.HmacSHA1(message, secret);
                             const credential = CryptoJS.enc.Base64.stringify(hmac);
+                            
                             iceServer.username = username;
                             iceServer.credential = credential;
+                            
+                            console.log(`Generated credentials for ${server.serverIp}:`, {
+                                username: username,
+                                credential: credential,
+                                timestamp: new Date(timestamp * 1000).toISOString()
+                            });
                         } else { // password type
                             iceServer.username = server.username;
                             iceServer.credential = server.credential;
                         }
                         return iceServer;
-                    })
+                    }),
+                    iceCandidatePoolSize: 10
                 };
+
+                console.log('PeerConnection config:', pcConfig);
 
                 let pc;
                 try {
                     pc = new RTCPeerConnection(pcConfig);
                 } catch (e) {
-                    resultsDiv.innerHTML = `\n[Error] Failed to create PeerConnection: ${e.message}`;
+                    const errorMsg = `[Error] Failed to create PeerConnection: ${e.message}`;
+                    resultsDiv.innerHTML = errorMsg;
                     statusDiv.textContent = "Failed";
                     statusDiv.className = "font-bold text-lg status-failed";
+                    console.error('PeerConnection creation failed:', e);
                     return;
                 }
 
-                const candidates = new Set();
+                const candidates = new Map();
                 let finalTimeout;
 
                 pc.onicecandidate = (event) => {
                     clearTimeout(finalTimeout);
                     if (event.candidate) {
                         const cand = event.candidate.candidate;
-                        if (!candidates.has(cand)) {
-                            candidates.add(cand);
+                        const candidateKey = `${cand}`;
+                        
+                        if (!candidates.has(candidateKey)) {
+                            candidates.set(candidateKey, event.candidate);
                             const candidateData = parseCandidate(cand);
                             let badgeHtml = `<span class="badge badge-${candidateData.type.toLowerCase()}">${candidateData.type}</span>`;
-                            if (resultsDiv.innerHTML === 'Gathering candidates...') resultsDiv.innerHTML = '';
-                            resultsDiv.innerHTML += `${badgeHtml} ${candidateData.address}:${candidateData.port} (${candidateData.protocol})\n`;
+                            
+                            if (resultsDiv.innerHTML === 'Gathering candidates...\n') {
+                                resultsDiv.innerHTML = '';
+                            }
+                            
+                            const candidateInfo = `${badgeHtml} ${candidateData.address}:${candidateData.port} (${candidateData.protocol})`;
+                            resultsDiv.innerHTML += `${candidateInfo}\n`;
+                            
+                            console.log('New ICE candidate:', {
+                                type: candidateData.type,
+                                address: candidateData.address,
+                                port: candidateData.port,
+                                protocol: candidateData.protocol,
+                                full: cand
+                            });
                         }
                     } else {
+                        console.log('ICE gathering completed (null candidate received)');
                         onIceGatheringComplete();
                     }
-                    finalTimeout = setTimeout(onIceGatheringComplete, 2500);
+                    // Set a fallback timeout
+                    finalTimeout = setTimeout(() => {
+                        console.log('ICE gathering timeout reached');
+                        onIceGatheringComplete();
+                    }, 10000); // Increased timeout for TURN servers
                 };
 
                 pc.onicegatheringstatechange = () => {
+                    console.log('ICE gathering state changed to:', pc.iceGatheringState);
                     if (pc.iceGatheringState === 'complete') {
                         onIceGatheringComplete();
                     }
                 };
 
-                pc.createDataChannel('test');
+                pc.oniceconnectionstatechange = () => {
+                    console.log('ICE connection state changed to:', pc.iceConnectionState);
+                };
+
+                // Create a data channel to force ICE gathering
+                const dataChannel = pc.createDataChannel('test', { ordered: false });
+                dataChannel.onopen = () => console.log('Data channel opened');
+                dataChannel.onerror = (error) => console.log('Data channel error:', error);
+
                 pc.createOffer()
-                    .then(offer => pc.setLocalDescription(offer))
+                    .then(offer => {
+                        console.log('Created offer, setting local description');
+                        return pc.setLocalDescription(offer);
+                    })
+                    .then(() => {
+                        console.log('Local description set, ICE gathering should start');
+                    })
                     .catch(e => {
-                        resultsDiv.innerHTML = `\n[Error] Creating offer failed: ${e.message}`;
+                        const errorMsg = `[Error] Creating offer failed: ${e.message}`;
+                        resultsDiv.innerHTML = errorMsg;
                         statusDiv.textContent = "Failed";
                         statusDiv.className = "font-bold text-lg status-failed";
+                        console.error('Offer creation failed:', e);
                     });
 
                 let completed = false;
@@ -300,34 +355,57 @@
                     completed = true;
                     clearTimeout(finalTimeout);
                     
-                    const hasRelay = Array.from(candidates).some(c => c.includes('typ relay'));
+                    console.log(`ICE gathering completed. Total candidates: ${candidates.size}`);
+                    
+                    const candidateTypes = Array.from(candidates.values()).map(c => {
+                        const parsed = parseCandidate(c.candidate);
+                        return parsed.type;
+                    });
+                    
+                    const hasRelay = candidateTypes.some(type => type === 'RELAY');
+                    const hasSrflx = candidateTypes.some(type => type === 'SRFLX');
+                    
+                    resultsDiv.innerHTML += '\n--- ICE Gathering Summary ---\n';
+                    resultsDiv.innerHTML += `Total candidates found: ${candidates.size}\n`;
+                    resultsDiv.innerHTML += `Candidate types: ${[...new Set(candidateTypes)].join(', ')}\n\n`;
+                    
                     if (hasRelay) {
                         statusDiv.textContent = "Success";
                         statusDiv.className = "font-bold text-lg status-success";
-                        resultsDiv.innerHTML += "\n\n[Success] Relay candidate(s) found. Your TURN server is working!";
-                    } else if (candidates.size > 0) {
-                        statusDiv.textContent = "Warning";
+                        resultsDiv.innerHTML += "[SUCCESS] ✓ RELAY candidates found! Your Eturnal TURN server is working correctly.\n";
+                        resultsDiv.innerHTML += "This means the server can relay traffic and help with NAT traversal.";
+                    } else if (hasSrflx) {
+                        statusDiv.textContent = "Partial";
                         statusDiv.className = "font-bold text-lg status-warning";
-                        resultsDiv.innerHTML += "\n\n[Warning] No 'relay' candidates found. The TURN server may be misconfigured or blocked.";
+                        resultsDiv.innerHTML += "[PARTIAL] ⚠ STUN working but no RELAY candidates found.\n";
+                        resultsDiv.innerHTML += "Check TURN configuration, credentials, or firewall settings.";
+                    } else if (candidates.size > 0) {
+                        statusDiv.textContent = "Limited";
+                        statusDiv.className = "font-bold text-lg status-warning";
+                        resultsDiv.innerHTML += "[LIMITED] ⚠ Only HOST candidates found.\n";
+                        resultsDiv.innerHTML += "TURN/STUN server may be unreachable or misconfigured.";
                     } else {
                         statusDiv.textContent = "Failed";
                         statusDiv.className = "font-bold text-lg status-failed";
-                        resultsDiv.innerHTML = "\n[Failed] No ICE candidates were gathered at all. Check server address, firewall, and console for errors.";
+                        resultsDiv.innerHTML = "[FAILED] ✗ No ICE candidates gathered.\n";
+                        resultsDiv.innerHTML += "Check server address, credentials, network connectivity, and browser console for errors.";
                     }
+                    
                     pc.close();
                 }
 
                 function parseCandidate(cand) {
                     const parts = cand.split(' ');
                     return {
-                        type: parts[7].toUpperCase(),
-                        address: parts[4],
-                        port: parts[5],
-                        protocol: parts[2].toLowerCase(),
+                        type: parts[7] ? parts[7].toUpperCase() : 'UNKNOWN',
+                        address: parts[4] || 'unknown',
+                        port: parts[5] || 'unknown',
+                        protocol: parts[2] ? parts[2].toLowerCase() : 'unknown',
                     };
                 }
             }
             
+            // Auto-start test on page load
             runTest(currentConfig);
         });
     </script>
